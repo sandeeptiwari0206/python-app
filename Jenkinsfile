@@ -8,40 +8,40 @@ pipeline {
     stages {
 
         stage('Checkout') {
-            agent { label 'master' }
+            agent { label 'windows' }
             steps {
                 checkout scm
             }
         }
 
         stage('Build Images') {
-            agent { label 'master' }
+            agent { label 'windows' }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub-creds',
                     usernameVariable: 'DH_USER',
                     passwordVariable: 'DH_PASS'
                 )]) {
-                    sh """
-                    docker build -t ${DH_USER}/python-backend:${IMAGE_TAG} backend
-                    docker build -t ${DH_USER}/python-frontend:${IMAGE_TAG} frontend
+                    bat """
+                    docker build -t %DH_USER%/python-backend:%IMAGE_TAG% backend
+                    docker build -t %DH_USER%/python-frontend:%IMAGE_TAG% frontend
                     """
                 }
             }
         }
 
         stage('Push Images') {
-            agent { label 'master' }
+            agent { label 'windows' }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub-creds',
                     usernameVariable: 'DH_USER',
                     passwordVariable: 'DH_PASS'
                 )]) {
-                    sh """
-                    docker login -u ${DH_USER} -p ${DH_PASS}
-                    docker push ${DH_USER}/python-backend:${IMAGE_TAG}
-                    docker push ${DH_USER}/python-frontend:${IMAGE_TAG}
+                    bat """
+                    echo %DH_PASS% | docker login -u %DH_USER% --password-stdin
+                    docker push %DH_USER%/python-backend:%IMAGE_TAG%
+                    docker push %DH_USER%/python-frontend:%IMAGE_TAG%
                     """
                 }
             }
@@ -59,7 +59,7 @@ pipeline {
                         passwordVariable: 'DH_PASS'
                     )
                 ]) {
-                    sh """
+                    sh '''
                     set -e
 
                     mkdir -p ~/app
@@ -86,13 +86,22 @@ pipeline {
                         restart: always
                     EOF
 
-                    docker login -u ${DH_USER} -p ${DH_PASS}
+                    echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
                     docker-compose down
                     docker-compose pull
                     docker-compose up -d
-                    """
+                    '''
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Pipeline completed successfully"
+        }
+        failure {
+            echo "❌ Pipeline failed"
         }
     }
 }
