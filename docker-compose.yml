@@ -1,0 +1,28 @@
+version: "3.8"
+
+services:
+  backend:
+    image: sandeeptiwari0206/python-backend:11
+    container_name: python-backend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - ENV=production
+    networks:
+      - python-net
+
+  frontend:
+    image: sandeeptiwari0206/python-frontend:11
+    container_name: python-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - python-net
+
+networks:
+  python-net:
+    driver: bridge
