@@ -50,6 +50,10 @@ pipeline {
         stage('Deploy via Docker Compose') {
             agent { label 'ec2' }
 
+            options {
+                skipDefaultCheckout(true)   // ⭐ CRITICAL FIX
+            }
+
             steps {
                 withCredentials([
                     string(credentialsId: 'mongo-uri', variable: 'MONGO_URI'),
@@ -98,7 +102,7 @@ pipeline {
 
     post {
         success {
-            echo "✅ Pipeline completed successfully"
+            echo "✅ Deployment completed successfully"
         }
         failure {
             echo "❌ Pipeline failed"
