@@ -2,107 +2,68 @@ pipeline {
     agent none
 
     environment {
-        IMAGE_TAG = "${BUILD_NUMBER}"
+        DOCKERHUB_USER = "sandeeptiwari0206"
+        BACKEND_IMAGE  = "python-backend"
+        FRONTEND_IMAGE = "python-frontend"
+        TAG            = "11"
     }
 
     stages {
 
-        stage('Checkout') {
-            agent { label 'windows' }
+        stage('Checkout Source') {
+            agent { label 'Jenkins' }   // Windows master
             steps {
                 checkout scm
             }
         }
 
-        stage('Build Images') {
-            agent { label 'windows' }
+        stage('Build Docker Images') {
+            agent { label 'Jenkins' }   // Windows master
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'DH_USER',
-                    passwordVariable: 'DH_PASS'
-                )]) {
-                    bat """
-                    docker build -t %DH_USER%/python-backend:%IMAGE_TAG% backend
-                    docker build -t %DH_USER%/python-frontend:%IMAGE_TAG% frontend
-                    """
-                }
+                bat '''
+                docker build -t %DOCKERHUB_USER%/%BACKEND_IMAGE%:%TAG% backend
+                docker build -t %DOCKERHUB_USER%/%FRONTEND_IMAGE%:%TAG% frontend
+                '''
             }
         }
 
-        stage('Push Images') {
-            agent { label 'windows' }
+        stage('Push Docker Images') {
+            agent { label 'Jenkins' }   // Windows master
+            environment {
+                DH_PASS = credentials('dockerhub-pass')
+            }
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'DH_USER',
-                    passwordVariable: 'DH_PASS'
-                )]) {
-                    bat """
-                    echo %DH_PASS% | docker login -u %DH_USER% --password-stdin
-                    docker push %DH_USER%/python-backend:%IMAGE_TAG%
-                    docker push %DH_USER%/python-frontend:%IMAGE_TAG%
-                    """
-                }
+                bat '''
+                echo %DH_PASS% | docker login -u %DOCKERHUB_USER% --password-stdin
+                docker push %DOCKERHUB_USER%/%BACKEND_IMAGE%:%TAG%
+                docker push %DOCKERHUB_USER%/%FRONTEND_IMAGE%:%TAG%
+                '''
             }
         }
 
         stage('Deploy via Docker Compose') {
-            agent { label 'ec2' }
-
+            agent { label 'ec2' }        // Ubuntu EC2
             options {
-                skipDefaultCheckout(true)   // ⭐ CRITICAL FIX
+                skipDefaultCheckout(true)
             }
-
             steps {
-                withCredentials([
-                    string(credentialsId: 'mongo-uri', variable: 'MONGO_URI'),
-                    usernamePassword(
-                        credentialsId: 'dockerhub-creds',
-                        usernameVariable: 'DH_USER',
-                        passwordVariable: 'DH_PASS'
-                    )
-                ]) {
-                    sh '''
-                    set -e
+                sh '''
+                set -e
 
-                    mkdir -p ~/app
-                    cd ~/app
+                docker pull sandeeptiwari0206/python-backend:11
+                docker pull sandeeptiwari0206/python-frontend:11
 
-                    cat > docker-compose.yml << EOF
-                    version: '3.8'
-
-                    services:
-                      backend:
-                        image: ${DH_USER}/python-backend:${IMAGE_TAG}
-                        container_name: backend
-                        ports:
-                          - "8000:8000"
-                        environment:
-                          MONGO_URI: ${MONGO_URI}
-                        restart: always
-
-                      frontend:
-                        image: ${DH_USER}/python-frontend:${IMAGE_TAG}
-                        container_name: frontend
-                        ports:
-                          - "80:80"
-                        restart: always
-                    EOF
-
-                    echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
-                    docker-compose down
-                    docker-compose pull
-                    docker-compose up -d
-                    '''
-                }
+                cd /home/ubuntu/python-app
+                docker compose down
+                docker compose up -d
+                '''
             }
         }
     }
 
     post {
         success {
-            echo "✅ Deployment completed successfully"
+            echo "✅ Pipeline completed successfully"
         }
         failure {
             echo "❌ Pipeline failed"
