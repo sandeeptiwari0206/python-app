@@ -14,23 +14,23 @@ pipeline {
             agent { label 'Jenkins' }
 
             environment {
-                DH_PASS = credentials('dockerhub-pass')
+                DOCKERHUB_TOKEN = credentials('dockerhub-token')
             }
 
             steps {
                 checkout scm
 
                 sh '''
-                echo "🔹 Building Docker images"
-                docker build -t ${DOCKERHUB_USER}/${BACKEND_IMAGE}:${TAG} backend
-                docker build -t ${DOCKERHUB_USER}/${FRONTEND_IMAGE}:${TAG} frontend
+                  echo "🔹 Building Docker images"
+                  docker build -t $DOCKERHUB_USER/$BACKEND_IMAGE:$TAG backend
+                  docker build -t $DOCKERHUB_USER/$FRONTEND_IMAGE:$TAG frontend
 
-                echo "🔹 Logging in to DockerHub"
-                echo "${DH_PASS}" | docker login -u ${DOCKERHUB_USER} --password-stdin
+                  echo "🔹 Login to Docker Hub"
+                  echo "$DOCKERHUB_TOKEN" | docker login -u $DOCKERHUB_USER --password-stdin
 
-                echo "🔹 Pushing Docker images"
-                docker push ${DOCKERHUB_USER}/${BACKEND_IMAGE}:${TAG}
-                docker push ${DOCKERHUB_USER}/${FRONTEND_IMAGE}:${TAG}
+                  echo "🔹 Pushing Docker images"
+                  docker push $DOCKERHUB_USER/$BACKEND_IMAGE:$TAG
+                  docker push $DOCKERHUB_USER/$FRONTEND_IMAGE:$TAG
                 '''
             }
         }
@@ -39,15 +39,16 @@ pipeline {
             agent { label 'ec2' }
 
             steps {
-                sh '''
-                echo "🔹 Pulling latest images on EC2"
-                docker pull sandeeptiwari0206/python-backend:11
-                docker pull sandeeptiwari0206/python-frontend:11
+                checkout scm
 
-                echo "🔹 Deploying with Docker Compose"
-                cd /home/ubuntu/python-app || exit 1
-                docker compose down
-                docker compose up -d
+                sh '''
+                  echo "🔹 Pulling latest images on EC2"
+                  docker pull sandeeptiwari0206/python-backend:11
+                  docker pull sandeeptiwari0206/python-frontend:11
+
+                  echo "🔹 Deploying with Docker Compose"
+                  docker compose down
+                  docker compose up -d
                 '''
             }
         }
