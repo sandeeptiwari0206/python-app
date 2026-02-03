@@ -11,7 +11,7 @@ pipeline {
     stages {
 
         stage('Checkout, Build & Push (Local)') {
-            agent { label 'local' }
+            agent { label 'Jenkins' }
 
             environment {
                 DH_PASS = credentials('dockerhub-pass')
