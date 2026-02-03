@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         IMAGE_TAG = "${BUILD_NUMBER}"
+        GIT_BASH = "C:\\Program Files\\Git\\bin\\bash.exe"
     }
 
     stages {
@@ -20,10 +21,10 @@ pipeline {
                     usernameVariable: 'DH_USER',
                     passwordVariable: 'DH_PASS'
                 )]) {
-                    sh '''
-                    docker build -t $DH_USER/python-backend:$IMAGE_TAG backend
-                    docker build -t $DH_USER/python-frontend:$IMAGE_TAG frontend
-                    '''
+                    bat """
+                    docker build -t %DH_USER%/python-backend:%IMAGE_TAG% backend
+                    docker build -t %DH_USER%/python-frontend:%IMAGE_TAG% frontend
+                    """
                 }
             }
         }
@@ -35,11 +36,11 @@ pipeline {
                     usernameVariable: 'DH_USER',
                     passwordVariable: 'DH_PASS'
                 )]) {
-                    sh '''
-                    docker login -u $DH_USER -p $DH_PASS
-                    docker push $DH_USER/python-backend:$IMAGE_TAG
-                    docker push $DH_USER/python-frontend:$IMAGE_TAG
-                    '''
+                    bat """
+                    docker login -u %DH_USER% -p %DH_PASS%
+                    docker push %DH_USER%/python-backend:%IMAGE_TAG%
+                    docker push %DH_USER%/python-frontend:%IMAGE_TAG%
+                    """
                 }
             }
         }
@@ -59,40 +60,42 @@ pipeline {
                         passwordVariable: 'DH_PASS'
                     )
                 ]) {
-                    sh """
-                    ssh -i $SSH_KEY ubuntu@$EC2_HOST << EOF
+                    bat """
+                    "%GIT_BASH%" -lc "
+                    ssh -i '%SSH_KEY%' -o StrictHostKeyChecking=no ubuntu@%EC2_HOST% << 'EOF'
                     set -e
 
                     mkdir -p ~/app
                     cd ~/app
 
                     cat > docker-compose.yml << COMPOSE
-                    version: "3.8"
+                    version: '3.8'
 
                     services:
                       backend:
-                        image: $DH_USER/python-backend:$IMAGE_TAG
+                        image: %DH_USER%/python-backend:%IMAGE_TAG%
                         container_name: backend
                         ports:
-                          - "8000:8000"
+                          - '8000:8000'
                         environment:
-                          MONGO_URI: $MONGO_URI
-                          SECRET_KEY: \$(openssl rand -hex 16)
+                          MONGO_URI: %MONGO_URI%
                         restart: always
 
                       frontend:
-                        image: $DH_USER/python-frontend:$IMAGE_TAG
+                        image: %DH_USER%/python-frontend:%IMAGE_TAG%
                         container_name: frontend
                         ports:
-                          - "80:80"
+                          - '80:80'
                         restart: always
                     COMPOSE
 
-                    docker login -u $DH_USER -p $DH_PASS
+                    docker login -u %DH_USER% -p %DH_PASS%
                     docker-compose down
                     docker-compose pull
                     docker-compose up -d
+
                     EOF
+                    "
                     """
                 }
             }
