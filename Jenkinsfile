@@ -1,5 +1,5 @@
 pipeline {
-    agent any
+    agent none
 
     environment {
         DOCKERHUB_USER = "sandeeptiwari0206"
@@ -10,40 +10,41 @@ pipeline {
 
     stages {
 
-        stage('Checkout') {
+        stage('Checkout, Build & Push (Local)') {
+            agent { label 'local' }
+
+            environment {
+                DH_PASS = credentials('dockerhub-pass')
+            }
+
             steps {
                 checkout scm
-            }
-        }
 
-        stage('Build Docker Images') {
-            environment {
-                DH_PASS = credentials('dockerhub-pass')
-            }
-            steps {
                 sh '''
+                echo "🔹 Building Docker images"
                 docker build -t ${DOCKERHUB_USER}/${BACKEND_IMAGE}:${TAG} backend
                 docker build -t ${DOCKERHUB_USER}/${FRONTEND_IMAGE}:${TAG} frontend
-                '''
-            }
-        }
 
-        stage('Push Docker Images') {
-            environment {
-                DH_PASS = credentials('dockerhub-pass')
-            }
-            steps {
-                sh '''
+                echo "🔹 Logging in to DockerHub"
                 echo "${DH_PASS}" | docker login -u ${DOCKERHUB_USER} --password-stdin
+
+                echo "🔹 Pushing images"
                 docker push ${DOCKERHUB_USER}/${BACKEND_IMAGE}:${TAG}
                 docker push ${DOCKERHUB_USER}/${FRONTEND_IMAGE}:${TAG}
                 '''
             }
         }
 
-        stage('Deploy via Docker Compose') {
+        stage('Deploy on EC2') {
+            agent { label 'ec2' }
+
             steps {
                 sh '''
+                echo "🔹 Pulling latest images"
+                docker pull sandeeptiwari0206/python-backend:11
+                docker pull sandeeptiwari0206/python-frontend:11
+
+                echo "🔹 Deploying via Docker Compose"
                 cd /home/ubuntu/python-app || exit 1
                 docker compose down
                 docker compose up -d
