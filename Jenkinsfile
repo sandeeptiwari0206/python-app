@@ -28,7 +28,7 @@ pipeline {
                 echo "🔹 Logging in to DockerHub"
                 echo "${DH_PASS}" | docker login -u ${DOCKERHUB_USER} --password-stdin
 
-                echo "🔹 Pushing images"
+                echo "🔹 Pushing Docker images"
                 docker push ${DOCKERHUB_USER}/${BACKEND_IMAGE}:${TAG}
                 docker push ${DOCKERHUB_USER}/${FRONTEND_IMAGE}:${TAG}
                 '''
@@ -40,11 +40,11 @@ pipeline {
 
             steps {
                 sh '''
-                echo "🔹 Pulling latest images"
+                echo "🔹 Pulling latest images on EC2"
                 docker pull sandeeptiwari0206/python-backend:11
                 docker pull sandeeptiwari0206/python-frontend:11
 
-                echo "🔹 Deploying via Docker Compose"
+                echo "🔹 Deploying with Docker Compose"
                 cd /home/ubuntu/python-app || exit 1
                 docker compose down
                 docker compose up -d
