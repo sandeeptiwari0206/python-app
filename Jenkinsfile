@@ -8,14 +8,14 @@ pipeline {
     stages {
 
         stage('Checkout') {
-            agent any
+            agent { label 'master' }
             steps {
                 checkout scm
             }
         }
 
         stage('Build Images') {
-            agent any
+            agent { label 'master' }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub-creds',
@@ -31,7 +31,7 @@ pipeline {
         }
 
         stage('Push Images') {
-            agent any
+            agent { label 'master' }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub-creds',
