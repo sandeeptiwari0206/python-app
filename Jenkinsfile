@@ -1,58 +1,57 @@
 pipeline {
-    agent any
+    agent none
 
     environment {
         IMAGE_TAG = "${BUILD_NUMBER}"
-        GIT_BASH = "C:\\Program Files\\Git\\bin\\bash.exe"
     }
 
     stages {
 
         stage('Checkout') {
+            agent any
             steps {
                 checkout scm
             }
         }
 
         stage('Build Images') {
+            agent any
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub-creds',
                     usernameVariable: 'DH_USER',
                     passwordVariable: 'DH_PASS'
                 )]) {
-                    bat """
-                    docker build -t %DH_USER%/python-backend:%IMAGE_TAG% backend
-                    docker build -t %DH_USER%/python-frontend:%IMAGE_TAG% frontend
+                    sh """
+                    docker build -t ${DH_USER}/python-backend:${IMAGE_TAG} backend
+                    docker build -t ${DH_USER}/python-frontend:${IMAGE_TAG} frontend
                     """
                 }
             }
         }
 
         stage('Push Images') {
+            agent any
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub-creds',
                     usernameVariable: 'DH_USER',
                     passwordVariable: 'DH_PASS'
                 )]) {
-                    bat """
-                    docker login -u %DH_USER% -p %DH_PASS%
-                    docker push %DH_USER%/python-backend:%IMAGE_TAG%
-                    docker push %DH_USER%/python-frontend:%IMAGE_TAG%
+                    sh """
+                    docker login -u ${DH_USER} -p ${DH_PASS}
+                    docker push ${DH_USER}/python-backend:${IMAGE_TAG}
+                    docker push ${DH_USER}/python-frontend:${IMAGE_TAG}
                     """
                 }
             }
         }
 
         stage('Deploy via Docker Compose') {
+            agent { label 'ec2' }
+
             steps {
                 withCredentials([
-                    string(credentialsId: 'ec2-host', variable: 'EC2_HOST'),
-                    sshUserPrivateKey(
-                        credentialsId: 'ec2-key',
-                        keyFileVariable: 'SSH_KEY'
-                    ),
                     string(credentialsId: 'mongo-uri', variable: 'MONGO_URI'),
                     usernamePassword(
                         credentialsId: 'dockerhub-creds',
@@ -60,42 +59,37 @@ pipeline {
                         passwordVariable: 'DH_PASS'
                     )
                 ]) {
-                    bat """
-                    "%GIT_BASH%" -lc "
-                    ssh -i '%SSH_KEY%' -o StrictHostKeyChecking=no ubuntu@%EC2_HOST% << 'EOF'
+                    sh """
                     set -e
 
                     mkdir -p ~/app
                     cd ~/app
 
-                    cat > docker-compose.yml << COMPOSE
+                    cat > docker-compose.yml << EOF
                     version: '3.8'
 
                     services:
                       backend:
-                        image: %DH_USER%/python-backend:%IMAGE_TAG%
+                        image: ${DH_USER}/python-backend:${IMAGE_TAG}
                         container_name: backend
                         ports:
-                          - '8000:8000'
+                          - "8000:8000"
                         environment:
-                          MONGO_URI: %MONGO_URI%
+                          MONGO_URI: ${MONGO_URI}
                         restart: always
 
                       frontend:
-                        image: %DH_USER%/python-frontend:%IMAGE_TAG%
+                        image: ${DH_USER}/python-frontend:${IMAGE_TAG}
                         container_name: frontend
                         ports:
-                          - '80:80'
+                          - "80:80"
                         restart: always
-                    COMPOSE
+                    EOF
 
-                    docker login -u %DH_USER% -p %DH_PASS%
+                    docker login -u ${DH_USER} -p ${DH_PASS}
                     docker-compose down
                     docker-compose pull
                     docker-compose up -d
-
-                    EOF
-                    "
                     """
                 }
             }
