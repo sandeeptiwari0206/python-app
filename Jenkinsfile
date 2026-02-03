@@ -20,10 +20,10 @@ pipeline {
                     usernameVariable: 'DH_USER',
                     passwordVariable: 'DH_PASS'
                 )]) {
-                    sh """
+                    sh '''
                     docker build -t $DH_USER/python-backend:$IMAGE_TAG backend
                     docker build -t $DH_USER/python-frontend:$IMAGE_TAG frontend
-                    """
+                    '''
                 }
             }
         }
@@ -35,11 +35,11 @@ pipeline {
                     usernameVariable: 'DH_USER',
                     passwordVariable: 'DH_PASS'
                 )]) {
-                    sh """
+                    sh '''
                     docker login -u $DH_USER -p $DH_PASS
                     docker push $DH_USER/python-backend:$IMAGE_TAG
                     docker push $DH_USER/python-frontend:$IMAGE_TAG
-                    """
+                    '''
                 }
             }
         }
@@ -59,7 +59,6 @@ pipeline {
                         passwordVariable: 'DH_PASS'
                     )
                 ]) {
-
                     sh """
                     ssh -i $SSH_KEY ubuntu@$EC2_HOST << EOF
                     set -e
@@ -75,4 +74,28 @@ pipeline {
                         image: $DH_USER/python-backend:$IMAGE_TAG
                         container_name: backend
                         ports:
-                          - "8000:8000
+                          - "8000:8000"
+                        environment:
+                          MONGO_URI: $MONGO_URI
+                          SECRET_KEY: \$(openssl rand -hex 16)
+                        restart: always
+
+                      frontend:
+                        image: $DH_USER/python-frontend:$IMAGE_TAG
+                        container_name: frontend
+                        ports:
+                          - "80:80"
+                        restart: always
+                    COMPOSE
+
+                    docker login -u $DH_USER -p $DH_PASS
+                    docker-compose down
+                    docker-compose pull
+                    docker-compose up -d
+                    EOF
+                    """
+                }
+            }
+        }
+    }
+}
