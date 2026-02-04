@@ -1,8 +1,6 @@
-version: "3.8"
-
 services:
   backend:
-    image: sandeeptiwari0206/python-backend:11
+    image: sandeeptiwari0206/python-backend:${IMAGE_TAG}
     container_name: python-backend
     restart: always
     ports:
@@ -13,11 +11,11 @@ services:
       - python-net
 
   frontend:
-    image: sandeeptiwari0206/python-frontend:11
+    image: sandeeptiwari0206/python-frontend:${IMAGE_TAG}
     container_name: python-frontend
     restart: always
     ports:
-      - "80:80"
+      - "5500:80"
     depends_on:
       - backend
     networks:
