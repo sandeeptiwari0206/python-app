@@ -6,6 +6,7 @@ pipeline {
         BACKEND_IMAGE  = "python-backend"
         FRONTEND_IMAGE = "python-frontend"
         TAG            = "${BUILD_NUMBER}"
+        PLATFORM       = "linux/amd64"
     }
 
     stages {
@@ -21,10 +22,15 @@ pipeline {
                 checkout scm
 
                 sh '''
+                  set -e
+
                   echo "🔹 Building Docker images with tag: ${TAG}"
 
-                  docker build -t ${DOCKERHUB_USER}/${BACKEND_IMAGE}:${TAG} backend
-                  docker build -t ${DOCKERHUB_USER}/${FRONTEND_IMAGE}:${TAG} frontend
+                  docker build --platform=${PLATFORM} \
+                    -t ${DOCKERHUB_USER}/${BACKEND_IMAGE}:${TAG} backend
+
+                  docker build --platform=${PLATFORM} \
+                    -t ${DOCKERHUB_USER}/${FRONTEND_IMAGE}:${TAG} frontend
 
                   echo "🔹 Login to Docker Hub"
                   echo "${DOCKERHUB_TOKEN}" | docker login -u ${DOCKERHUB_USER} --password-stdin
@@ -45,6 +51,8 @@ pipeline {
                 checkout scm
 
                 sh '''
+                  set -e
+
                   echo "🔹 Deploying images with tag: ${TAG}"
 
                   docker pull ${DOCKERHUB_USER}/${BACKEND_IMAGE}:${TAG}
@@ -64,10 +72,7 @@ pipeline {
             steps {
                 sh '''
                   echo "🧹 Cleaning unused Docker images on EC2"
-
                   docker image prune -af
-
-                  echo "🧹 Docker disk usage after cleanup:"
                   docker system df
                 '''
             }
