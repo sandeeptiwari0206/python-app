@@ -17,7 +17,7 @@ services:
     container_name: python-frontend
     restart: always
     ports:
-      - "80:80"
+      - "5500:5500"
     depends_on:
       - backend
     networks:
