@@ -57,6 +57,21 @@ pipeline {
                 '''
             }
         }
+
+        stage('Cleanup old Docker images on EC2') {
+            agent { label 'ec2' }
+
+            steps {
+                sh '''
+                  echo "🧹 Cleaning unused Docker images on EC2"
+
+                  docker image prune -af
+
+                  echo "🧹 Docker disk usage after cleanup:"
+                  docker system df
+                '''
+            }
+        }
     }
 
     post {
