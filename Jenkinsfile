@@ -5,7 +5,7 @@ pipeline {
         DOCKERHUB_USER = "sandeeptiwari0206"
         BACKEND_IMAGE  = "python-backend"
         FRONTEND_IMAGE = "python-frontend"
-        TAG            = "11"
+        TAG            = "${BUILD_NUMBER}"
     }
 
     stages {
@@ -21,7 +21,8 @@ pipeline {
                 checkout scm
 
                 sh '''
-                  echo "🔹 Building Docker images"
+                  echo "🔹 Building Docker images with tag: ${TAG}"
+
                   docker build -t ${DOCKERHUB_USER}/${BACKEND_IMAGE}:${TAG} backend
                   docker build -t ${DOCKERHUB_USER}/${FRONTEND_IMAGE}:${TAG} frontend
 
@@ -32,7 +33,6 @@ pipeline {
                   docker push ${DOCKERHUB_USER}/${BACKEND_IMAGE}:${TAG}
                   docker push ${DOCKERHUB_USER}/${FRONTEND_IMAGE}:${TAG}
 
-                  echo "🔹 Logout from Docker Hub"
                   docker logout
                 '''
             }
@@ -45,11 +45,13 @@ pipeline {
                 checkout scm
 
                 sh '''
-                  echo "🔹 Pulling latest images on EC2"
-                  docker pull sandeeptiwari0206/python-backend:11
-                  docker pull sandeeptiwari0206/python-frontend:11
+                  echo "🔹 Deploying images with tag: ${TAG}"
 
-                  echo "🔹 Deploying with Docker Compose"
+                  docker pull ${DOCKERHUB_USER}/${BACKEND_IMAGE}:${TAG}
+                  docker pull ${DOCKERHUB_USER}/${FRONTEND_IMAGE}:${TAG}
+
+                  export IMAGE_TAG=${TAG}
+
                   docker compose down
                   docker compose up -d
                 '''
@@ -59,7 +61,7 @@ pipeline {
 
     post {
         success {
-            echo "✅ Pipeline completed successfully"
+            echo "✅ Pipeline completed successfully with tag ${TAG}"
         }
         failure {
             echo "❌ Pipeline failed"
