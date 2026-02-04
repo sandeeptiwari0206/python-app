@@ -10,11 +10,11 @@ pipeline {
 
     stages {
 
-        stage('Checkout, Build & Push (Local)') {
-            agent { label 'Jenkins' }
+        stage('Checkout, Build & Push (Built-In Node)') {
+            agent { label 'built-in' }
 
             environment {
-                DOCKERHUB_TOKEN = credentials('dockerhub-token')
+                DOCKERHUB_TOKEN = credentials('dockerhub-pass')
             }
 
             steps {
@@ -22,15 +22,18 @@ pipeline {
 
                 sh '''
                   echo "🔹 Building Docker images"
-                  docker build -t $DOCKERHUB_USER/$BACKEND_IMAGE:$TAG backend
-                  docker build -t $DOCKERHUB_USER/$FRONTEND_IMAGE:$TAG frontend
+                  docker build -t ${DOCKERHUB_USER}/${BACKEND_IMAGE}:${TAG} backend
+                  docker build -t ${DOCKERHUB_USER}/${FRONTEND_IMAGE}:${TAG} frontend
 
                   echo "🔹 Login to Docker Hub"
-                  echo "$DOCKERHUB_TOKEN" | docker login -u $DOCKERHUB_USER --password-stdin
+                  echo "${DOCKERHUB_TOKEN}" | docker login -u ${DOCKERHUB_USER} --password-stdin
 
                   echo "🔹 Pushing Docker images"
-                  docker push $DOCKERHUB_USER/$BACKEND_IMAGE:$TAG
-                  docker push $DOCKERHUB_USER/$FRONTEND_IMAGE:$TAG
+                  docker push ${DOCKERHUB_USER}/${BACKEND_IMAGE}:${TAG}
+                  docker push ${DOCKERHUB_USER}/${FRONTEND_IMAGE}:${TAG}
+
+                  echo "🔹 Logout from Docker Hub"
+                  docker logout
                 '''
             }
         }
